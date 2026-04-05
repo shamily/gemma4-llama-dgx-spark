@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Download gemma-4-26B-A4B MXFP4_MOE GGUF from HuggingFace.
+# Download gemma-4-26B-A4B-it Q4_K_M GGUF from ggml-org (llama.cpp team).
 # Public repo — no HF token required.
-# Source: https://huggingface.co/tianrui6641/gemma-4-26b-a4b-gguf-mxfp4-moe
+# Source: https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF
 #
 # Usage:
 #   ./scripts/download_model.sh
 
 set -euo pipefail
 
-REPO="tianrui6641/gemma-4-26b-a4b-gguf-mxfp4-moe"
+REPO="ggml-org/gemma-4-26B-A4B-it-GGUF"
 MODELS_DIR="./models"
 
 mkdir -p "${MODELS_DIR}"
 
-echo "==> Downloading GGUF model files from ${REPO} via Docker..."
+echo "==> Downloading GGUF model files from ${REPO}..."
 
 docker run --rm \
     -v "$(pwd)/models:/models" \
@@ -23,7 +23,7 @@ docker run --rm \
 from huggingface_hub import hf_hub_download
 import os
 repo = '${REPO}'
-files = ['gemma-4-26B-A4B.MXFP4_MOE.gguf', 'mmproj-gemma-4-26B-A4B.f16.gguf']
+files = ['gemma-4-26B-A4B-it-Q4_K_M.gguf']
 token = os.environ.get('HF_TOKEN')
 for f in files:
     print(f'  -> {f}')

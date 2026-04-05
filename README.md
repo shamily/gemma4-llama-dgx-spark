@@ -16,13 +16,12 @@ Running and benchmarking LLMs with llama.cpp in Docker on the ASUS Ascent GX10 (
 
 | | |
 |---|---|
-| Model | `tianrui6641/gemma-4-26b-a4b-gguf-mxfp4-moe` |
-| Base | `google/gemma-4-26B-A4B` (base + embedded chat template) |
-| File | `gemma-4-26B-A4B.MXFP4_MOE.gguf` (14.7 GB) |
-| Projector | `mmproj-gemma-4-26B-A4B.f16.gguf` (vision) |
+| Model | `ggml-org/gemma-4-26B-A4B-it-GGUF` |
+| Base | `google/gemma-4-26B-A4B-it` (instruction-tuned by Google) |
+| File | `gemma-4-26B-A4B-it-Q4_K_M.gguf` (16 GB) |
 | Architecture | Gemma 4 (MoE + hybrid sliding-window attention) |
 | Active params | ~4B per token (26B total) |
-| Quantization | MXFP4_MOE — 4-bit MoE-optimized |
+| Quantization | Q4_K_M — 4-bit, converted by the llama.cpp team from Google's official weights |
 | License | Apache 2.0 — public, no HF token needed |
 | llama.cpp support | PR [#21309](https://github.com/ggml-org/llama.cpp/pull/21309) — vision + MoE (audio not yet supported) |
 
