@@ -1,0 +1,57 @@
+name: llama_host
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        CUDA_VERSION: "13.0.1"         # DGX Spark / GB10 system CUDA version
+        CUDA_DOCKER_ARCH: "121"        # SM_121 = GB10 Grace Blackwell SoC
+        # Fallback if SM_121 build fails: CUDA_DOCKER_ARCH: "89"
+    image: llama_host:latest
+    container_name: llama_server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models:ro
+    environment:
+      LLAMA_ARG_MODEL: /models/gemma-4-26B-A4B-it-Q4_K_M.gguf
+      LLAMA_ARG_CTX_SIZE: "8192"
+      LLAMA_ARG_N_GPU_LAYERS: "-1"
+      LLAMA_ARG_FLASH_ATTN: "1"
+      LLAMA_ARG_N_PARALLEL: "4"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Run benchmarks: docker compose run --rm bench
+  bench:
+    image: llama_host:latest
+    container_name: llama_bench
+    profiles: [bench]
+    entrypoint: ["/app/llama-bench"]
+    command:
+      - "--model"
+      - "/models/gemma-4-26B-A4B-it-Q4_K_M.gguf"
+      - "--n-gpu-layers"
+      - "-1"
+      - "--flash-attn"
+      - "1"
+      - "--n-ubatch"
+      - "2048"
+    volumes:
+      - ./models:/models:ro
+      - ./results:/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
