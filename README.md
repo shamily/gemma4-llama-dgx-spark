@@ -1,4 +1,4 @@
-# llama_host
+# Setup and Benchmarking of Gemma 4 on NVIDIA DGX Spark / Asus Ascent GX10 with Nvidia GB10 GPU
 
 Benchmarking **Google Gemma 4 26B** with llama.cpp on the NVIDIA GB10 (Grace Blackwell) SoC, served via a Docker container with an OpenAI-compatible API.
 
@@ -192,6 +192,18 @@ How fast the server handles concurrent requests. **B** = number of simultaneous 
 Prefill scales well with batch size: B=1 gives ~2600 t/s, B=8 gives ~2960 t/s. This is because the GB10 has enough memory bandwidth to keep all 8 sequences' KV caches in the same unified pool without any spilling.
 
 Full benchmark logs in [`results/`](./results/).
+
+---
+
+## Dockerfile Details & Explanations
+
+The `Dockerfile` in this repository is explicitly configured for the unique ARM64 + GB10 environment:
+
+- **NGC Base Images:** Uses NVIDIA GPU Cloud (`nvcr.io/nvidia/cuda:13.0.1-*-ubuntu24.04`) instead of standard Docker Hub images because Docker Hub lacks official ARM64 CUDA 13 images.
+- **Compute Capability SM_121:** Automatically sets `CUDA_DOCKER_ARCH=121` (mapped to `CMAKE_CUDA_ARCHITECTURES=121`). The GB10 Grace Blackwell SoC is SM_121, distinct from discrete Blackwell GPUs (SM_100). Default builds targeting generic Blackwell will fail or generate incompatible PTX. 
+- **Compiled From Source:** Clones `ggml-org/llama.cpp` (defaulting to the `master` branch) and compiles via GCC-14 and CMake. This is necessary to immediately support cutting-edge architecture patches like PR #21309 for Gemma 4.
+- **Minimal Multi-stage Build:** Compiles the software in a comprehensive `-devel` CUDA image, then copies only the necessary compiled binaries, Python scripts, and `.so` shared libraries into a lightweight `-runtime` image.
+- **Optimized Defaults:** Pre-configures the `llama-server` entrypoint with vital environment defaults out of the box, including Flash Attention enabled (`LLAMA_ARG_FLASH_ATTN=1`), context size `8192`, and full GPU memory offloading (`LLAMA_ARG_N_GPU_LAYERS=-1`).
 
 ---
 
