@@ -77,6 +77,38 @@ API available at `http://localhost:8080` (OpenAI-compatible).
 
 Results saved to `./results/bench_<timestamp>.md`.
 
+## Benchmark Results
+
+**Hardware:** NVIDIA GB10, Grace Blackwell, SM_121, 120 GB unified memory, ARM64
+**llama.cpp:** build `5d3a4a7`, CUDA 13, `BLACKWELL_NATIVE_FP4=1`, flash attention on
+
+### llama-bench — single sequence throughput
+
+Model: `gemma-4-26B-A4B-it Q4_K_M` (ggml-org), 15.63 GiB, 25.23 B params
+
+| test | t/s |
+|---|---|
+| pp512 (prompt processing) | **2607 t/s** |
+| tg128 (token generation) | **70 t/s** |
+
+### llama-batched-bench — multi-sequence throughput
+
+Parallel sequences (B), prompt tokens (PP), generation tokens (TG):
+
+| PP | TG | B | N_KV | S_PP t/s | S_TG t/s | S total t/s |
+|---|---|---|---|---|---|---|
+| 128 | 32 | 1 | 160 | 461 | 58 | 193 |
+| 128 | 32 | 4 | 640 | 2727 | 160 | 649 |
+| 128 | 32 | 8 | 1280 | 3123 | 228 | 881 |
+| 512 | 32 | 1 | 544 | 2740 | 57 | 728 |
+| 512 | 32 | 4 | 2176 | 3233 | 147 | 1445 |
+| 512 | 32 | 8 | 4352 | 3278 | 201 | 1725 |
+| 512 | 128 | 1 | 640 | 2814 | 58 | 269 |
+| 512 | 128 | 4 | 2560 | 3257 | 148 | 627 |
+| 512 | 128 | 8 | 5120 | 3288 | 204 | 816 |
+
+Full benchmark logs in [`results/`](./results/).
+
 ## Planned Work
 
 - [x] Dockerfile — llama.cpp CUDA image (SM_121, CUDA 13, ARM64)

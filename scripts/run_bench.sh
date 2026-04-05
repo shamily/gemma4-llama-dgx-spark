@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-MODEL="${MODEL:-./models/gemma-4-26B-A4B.MXFP4_MOE.gguf}"
+MODEL="${MODEL:-./models/gemma-4-26B-A4B-it-Q4_K_M.gguf}"
 RESULTS_DIR="./results"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUT_FILE="${RESULTS_DIR}/bench_${TIMESTAMP}.md"
@@ -35,11 +35,12 @@ docker run --rm --gpus all \
     -v "$(pwd)/models:/models:ro" \
     --entrypoint /app/llama-bench \
     llama_host:latest \
-    --model "/models/$(basename "${MODEL}")" \
-    --n-gpu-layers -1 \
-    --flash-attn 1 \
-    --n-ubatch 2048 \
-    --output markdown \
+    -m "/models/$(basename "${MODEL}")" \
+    -ngl 99 \
+    -fa 1 \
+    -b 2048 \
+    -ub 2048 \
+    -o md \
     2>&1 | tee -a "${OUT_FILE}"
 
 echo "\`\`\`" | tee -a "${OUT_FILE}"
@@ -52,12 +53,15 @@ docker run --rm --gpus all \
     -v "$(pwd)/models:/models:ro" \
     --entrypoint /app/llama-batched-bench \
     llama_host:latest \
-    --model "/models/$(basename "${MODEL}")" \
-    --n-gpu-layers -1 \
-    --ctx-size 270336 \
-    --batch-size 2048 \
-    --ubatch-size 2048 \
-    --flash-attn \
+    -m "/models/$(basename "${MODEL}")" \
+    -ngl 99 \
+    -c 16384 \
+    -b 2048 \
+    -ub 2048 \
+    -fa 1 \
+    -npp 128,512,2048 \
+    -ntg 32,128 \
+    -npl 1,4,8 \
     2>&1 | tee -a "${OUT_FILE}"
 
 echo "\`\`\`" | tee -a "${OUT_FILE}"
