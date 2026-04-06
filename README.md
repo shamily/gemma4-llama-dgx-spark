@@ -367,6 +367,141 @@ Generation speed is consistent at 67–70 t/s regardless of prompt type or respo
 
 ---
 
+## Troubleshooting
+
+Common issues encountered when setting up or reproducing these benchmarks.
+
+---
+
+**`docker compose build` fails pulling the base image**
+
+```
+Error response from daemon: pull access denied for nvcr.io/nvidia/cuda
+```
+
+NGC rate-limits unauthenticated pulls. Register for a free NGC account at [ngc.nvidia.com](https://ngc.nvidia.com), generate an API key, then:
+
+```bash
+docker login nvcr.io   # username: $oauthtoken   password: <your API key>
+```
+
+---
+
+**`./scripts/download_model.sh` fails with "No such image"**
+
+The download script runs Python inside the `llama_host:latest` container. Build the image first:
+
+```bash
+docker compose build
+./scripts/download_model.sh
+```
+
+---
+
+**Build succeeds but inference crashes or produces garbage output**
+
+The image was probably built for the wrong compute capability. Verify:
+
+```bash
+docker run --rm --gpus all llama_host:latest nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+```
+
+For GB10 the answer must be `12.1`. If you see something else, rebuild with the matching `CUDA_DOCKER_ARCH`:
+
+| GPU | SM | CUDA_DOCKER_ARCH |
+|-----|----|-----------------|
+| GB10 (DGX Spark / Ascent GX10) | 12.1 | `121` |
+| H100 | 9.0 | `90` |
+| RTX 4090 / Ada | 8.9 | `89` |
+| A100 | 8.0 | `80` |
+
+```bash
+docker compose build --build-arg CUDA_DOCKER_ARCH=89
+```
+
+---
+
+**`llama-bench` prints its help text instead of running (Group B)**
+
+Caused by passing an unsupported flag. In build `5d3a4a7`, context size in `llama-bench` is set implicitly by depth (`-d`), not with a `-c` flag. If you see the help dump in your results file, check that your `run_bench.sh` uses `-d` for depth rather than `-c`.
+
+---
+
+**`run_bench.sh` exits mid-run with exit code 1**
+
+Most likely cause: `llama-batched-bench` ran out of KV cache because `B × (PP + TG)` exceeded the context size. The script uses `set -euo pipefail` so any non-zero exit aborts the run. Either increase the context (`-c 262144`) or reduce the maximum batch size. Group C in this repo uses `-c 262144` to accommodate all combinations up to PP=4096, B=32.
+
+---
+
+**Server and benchmark tools compete for GPU (OOM / hang)**
+
+`llama-server`, `llama-bench`, and `llama-batched-bench` all allocate the full GPU. Running two at once will cause one to OOM or deadlock. Always stop the server before benchmarking:
+
+```bash
+docker compose down
+./scripts/run_bench.sh
+```
+
+---
+
+**`VRAM: [N/A]` in benchmark result headers**
+
+The bench script queries `nvidia-smi` with a format string that returns "Not Supported" on some GB10 driver versions. This does not affect benchmark validity — it is a display issue in the captured environment header only. The actual available VRAM is 122,479 MiB as reported by the CUDA runtime at model load time.
+
+---
+
+**`llama.cpp: (version unavailable)` in result headers**
+
+The `--version` flag output format changed across llama.cpp builds. The version capture in `run_bench.sh` does not match this build's output. The build hash `5d3a4a7` is the ground truth — see the `build:` line at the bottom of each `llama-bench` result table instead.
+
+---
+
+**Model shown as `?B` in llama-bench output**
+
+```
+| gemma4 ?B Q4_K - Medium | ...
+```
+
+llama.cpp did not recognise the model size label for MoE models at this commit. It is cosmetic — the parameter count (`25.23 B`) in the same row is correct.
+
+---
+
+**`thinking_budget=0` has no effect**
+
+The `thinking_budget` parameter is silently ignored in build `5d3a4a7`. Both modes produce identical output with chain-of-thought always active. Rebuild from a newer master to get working thinking suppression:
+
+```bash
+docker compose build   # no LLAMA_CPP_REF — picks up latest master
+```
+
+---
+
+**`docker compose` not found / command not recognised**
+
+You have Docker Compose v1 (`docker-compose` with a hyphen). This repo requires Compose v2 (the plugin, `docker compose` with a space), included with Docker Engine 20.10+. Upgrade Docker or install the Compose plugin:
+
+```bash
+docker compose version   # should print v2.x.x or v5.x.x
+```
+
+---
+
+**x86 build: wrong base image**
+
+The NGC ARM64 CUDA 13 image does not exist for x86. Change the base image in the Dockerfile to the Docker Hub equivalent for your CUDA version:
+
+```dockerfile
+# ARM64 (GB10) — current default
+FROM nvcr.io/nvidia/cuda:13.0.1-devel-ubuntu24.04
+
+# x86 — replace with your CUDA version
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+```
+
+Also set `CUDA_DOCKER_ARCH` to match your GPU (see table above).
+
+---
+
 ## Dockerfile Details
 
 The `Dockerfile` is explicitly configured for the ARM64 + GB10 environment:
